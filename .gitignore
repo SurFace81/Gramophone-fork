@@ -10,3 +10,10 @@
 .externalNativeBuild
 .cxx
 local.properties
+AGENTS.md
+/.local-signing/
+/.local-build/
+/release-build.log
+/debug.log
+/misc/audiofxfwd/bin/
+/misc/audiofxstub/bin/
