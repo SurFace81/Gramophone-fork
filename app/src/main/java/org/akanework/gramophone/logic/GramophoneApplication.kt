@@ -23,16 +23,11 @@ import android.app.NotificationManager
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Build
-import android.os.Debug
 import android.os.Environment
-import android.os.StrictMode
-import android.os.StrictMode.ThreadPolicy
-import android.os.StrictMode.VmPolicy
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.runtime.Composer
 import androidx.compose.runtime.ExperimentalComposeRuntimeApi
 import androidx.core.content.edit
-import androidx.fragment.app.strictmode.FragmentStrictMode
 import androidx.media3.common.util.Log
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.preference.PreferenceManager
@@ -117,55 +112,6 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
         // disk read and write on first launch, but unavoidable as threads would race setDefaultNightMode
         val prefs = PreferenceManager.getDefaultSharedPreferences(this)
         val themeMode = prefs.getString("theme_mode", "0")
-        if (BuildConfig.DEBUG && !isColorOS()) {
-            // Use StrictMode to find antipattern issues
-            StrictMode.setThreadPolicy(
-                ThreadPolicy.Builder()
-                    .detectAll()
-                    .let {
-                        if (Build.VERSION.SDK_INT == Build.VERSION_CODES.UPSIDE_DOWN_CAKE ||
-                            Build.VERSION.SDK_INT == Build.VERSION_CODES.VANILLA_ICE_CREAM
-                        ) {
-                            it.permitExplicitGc() // platform bug, now fixed
-                        } else it
-                    }
-                    .let {
-                        if (Debug.isDebuggerConnected() || isAlpsBoostFwkPresent())
-                            it.permitDiskReads()
-                        else it
-                    }
-                    .penaltyLog()
-                    .penaltyDialog()
-                    .build()
-            )
-            StrictMode.setVmPolicy(
-                VmPolicy.Builder()
-                    .detectAll()
-                    // detectAll does in fact not detect everything :)
-                    .let {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                            it.detectImplicitDirectBoot()
-                        } else it
-                    }
-                    .penaltyLog()
-                    .let {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                            it.penaltyDeathOnFileUriExposure()
-                        } else it
-                    }
-                    .build()
-            )
-            FragmentStrictMode.defaultPolicy = FragmentStrictMode.Policy.Builder()
-                .detectFragmentReuse()
-                .detectFragmentTagUsage()
-                .detectRetainInstanceUsage()
-                .detectSetUserVisibleHint()
-                //.detectTargetFragmentUsage() TODO onDisplayPreferenceDialog()
-                .detectWrongFragmentContainer()
-                .detectWrongNestedHierarchy()
-                .penaltyDeath()
-                .build()
-        }
         android.util.Log.d(TAG, "GramophoneApplication.onCreate()")
         org.nift4.mediastorecompat.Log.setLogger(object : org.nift4.mediastorecompat.Log.Logger {
             override fun d(
@@ -391,22 +337,4 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
         exitProcess(10)
     }
 
-    private fun isAlpsBoostFwkPresent(): Boolean {
-        try {
-            Class.forName("com.mediatek.boostfwk.BoostFwkManagerImpl")
-            return true
-        } catch (_: Throwable) {
-            return false
-        }
-    }
-
-    private fun isColorOS(): Boolean {
-        val props = listOf(
-            "ro.build.version.opporom",
-            "ro.oplus.os.version"
-        )
-        return props.any {
-            !getSystemProperty(it).isNullOrBlank()
-        }
-    }
 }
